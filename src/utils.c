@@ -13,10 +13,7 @@ heap_group_t _heap_group_from_block_size(size_t size) {
   if (size <= SMALL_BLOCK_SIZE) {
     return SMALL;
   }
-  if (size <= LARGE_BLOCK_SIZE) {
-    return LARGE;
-  }
-  assert(false && "Should'nt hit here");
+  return LARGE;
 }
 
 void _find_available_block(size_t size, heap_block_t **res_block,
@@ -87,14 +84,14 @@ heap_t *_get_available_heap(heap_t *start_heap, heap_group_t group,
   return NULL;
 }
 
-int _get_heap_of_block_size(heap_group_t group) {
+int _get_heap_of_block_size(heap_group_t group, size_t size) {
   switch (group) {
   case TINY:
     return TINY_HEAP_ALLOC_SIZE;
   case SMALL:
     return SMALL_HEAP_ALLOC_SIZE;
   case LARGE:
-    return LARGE_HEAP_ALLOC_SIZE;
+    return size + sizeof(heap_t) + sizeof(heap_block_t);
   }
   return 0;
 }
@@ -109,7 +106,7 @@ void _zero_out(void *heap, size_t size) {
 }
 
 heap_t *_new_heap(heap_group_t group, size_t size) {
-  int heap_size = _get_heap_of_block_size(group);
+  int heap_size = _get_heap_of_block_size(group, size);
   struct rlimit rpl;
   getrlimit(RLIMIT_DATA, &rpl);
   if (heap_size > rpl.rlim_max) {
@@ -163,7 +160,7 @@ heap_block_t *_get_last_block(heap_block_t *block) {
 void *_append_empty_block(heap_t *heap, size_t size) {
   heap_block_t *new_block;
   heap_block_t *last_block;
-  new_block = HEAP_SHIFT(heap) + sizeof(heap_t);
+  new_block = HEAP_SHIFT(heap);
   last_block = NULL; // In case of non initialized heaps
   if (heap->block_count) {
     last_block = _get_last_block(new_block);
