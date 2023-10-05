@@ -1,6 +1,7 @@
 #include "mymem.h"
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 
@@ -115,10 +116,31 @@ heap_t *_new_heap(heap_group_t group, size_t size) {
   // adding a video here for future
   // reference: https://youtu.be/sFYFuBzu9Ow?feature=shared
   // For more info on arguments check the man page for mmap
-  heap_t *heap = mmap(NULL, (size_t)heap_size, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (heap == MAP_FAILED)
-    return NULL;
+  heap_t *heap;
+  switch (group) {
+  case TINY:
+  case SMALL: {
+    heap = sbrk(heap_size);
+    printf("used sbrk\n");
+    if ((void *)heap == (void *)-1) {
+      fprintf(stderr, "Sbrk failed");
+      return NULL;
+    }
+    break;
+  }
+  case LARGE: {
+    printf("used mmap\n");
+    heap = mmap(NULL, (size_t)heap_size, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (heap == MAP_FAILED) {
+      fprintf(stderr, "Mmap failed");
+      return NULL;
+    }
+    break;
+  }
+  default:
+    assert(false && "Should'nt hit here");
+  }
   _zero_out(heap, sizeof(heap_t));
   heap->group = group;
   heap->total_size = heap_size;
